@@ -52,14 +52,16 @@ class ApiService {
           storageService.set(STORAGE_KEYS.CUSTOMER_USER, data.user);
           storageService.setActiveRole('customer');
           return data;
+        } else {
+          return { success: false, message: data.message || 'Invalid credentials. User not found or incorrect password.' };
         }
       } catch (err) {
-        console.warn('Backend customer login error, using local auth', err);
+        console.warn('Backend customer login error', err);
+        return { success: false, message: 'Server communication error. Please ensure database and server are running.' };
       }
     }
 
-    // If backend was checked and returned error, return that error
-    return { success: false, message: 'Invalid customer email/phone or password. Please verify your credentials or register.' };
+    return { success: false, message: 'Unable to reach backend database service. Please check your connection.' };
   }
 
   async register(registrationData) {
@@ -76,29 +78,16 @@ class ApiService {
           storageService.set(STORAGE_KEYS.CUSTOMER_USER, data.user);
           storageService.setActiveRole('customer');
           return data;
+        } else {
+          return { success: false, message: data.message || 'Registration failed. Please check inputs.' };
         }
       } catch (err) {
-        console.warn('Backend register error, using local fallback', err);
+        console.warn('Backend register error', err);
+        return { success: false, message: 'Server communication error during registration.' };
       }
     }
 
-    await new Promise((r) => setTimeout(r, 400));
-    const user = {
-      id: `cust-${Date.now()}`,
-      fullName: registrationData.fullName,
-      email: registrationData.email,
-      mobile: registrationData.mobile,
-      role: 'customer',
-      deliveryAddress: registrationData.deliveryAddress,
-      city: registrationData.city,
-      state: registrationData.state,
-      pincode: registrationData.pincode,
-      createdAt: new Date().toISOString()
-    };
-
-    storageService.set(STORAGE_KEYS.CUSTOMER_USER, user);
-    storageService.setActiveRole('customer');
-    return { success: true, user, token: 'mock-jwt-customer-token' };
+    return { success: false, message: 'Unable to reach backend database service. Please check your connection.' };
   }
 
   async getCurrentUser() {

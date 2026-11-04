@@ -32,7 +32,7 @@ export function CustomerAuthProvider({ children }) {
       setUser(res.user);
       return res;
     }
-    throw new Error('Login failed. Please check credentials.');
+    throw new Error(res.message || 'Login failed. Please check credentials.');
   };
 
   const register = async (formData) => {
@@ -44,7 +44,7 @@ export function CustomerAuthProvider({ children }) {
       setAddresses(updatedAddrs);
       return res;
     }
-    throw new Error('Registration failed.');
+    throw new Error(res.message || 'Registration failed.');
   };
 
   const logout = () => {
