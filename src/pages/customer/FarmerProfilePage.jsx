@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useCart } from '../../context/CartContext';
+import { handleImageError, handleAvatarError, AVATAR_FALLBACKS } from '../../utils/imageFallback';
 
 export default function FarmerProfilePage() {
   const { id } = useParams();
@@ -97,8 +98,13 @@ export default function FarmerProfilePage() {
         {/* Cover Image */}
         <div className="relative h-48 sm:h-64 bg-gray-100 overflow-hidden">
           <img
-            src={farmer.coverImage}
+            src={farmer.coverImage || AVATAR_FALLBACKS.farmCover}
             alt={farmer.farmName}
+            loading="lazy"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = AVATAR_FALLBACKS.farmCover;
+            }}
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#081c15]/90 via-[#081c15]/30 to-transparent" />
@@ -111,6 +117,8 @@ export default function FarmerProfilePage() {
               <img
                 src={farmer.avatar}
                 alt={farmer.name}
+                loading="lazy"
+                onError={(e) => handleAvatarError(e, 'farmer')}
                 className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover border-4 border-white shadow-xl shrink-0"
               />
               <div>
@@ -211,6 +219,8 @@ export default function FarmerProfilePage() {
                     <img
                       src={prod.images?.[0] || prod.image}
                       alt={prod.name}
+                      loading="lazy"
+                      onError={(e) => handleImageError(e, prod.category)}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     <span className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-[#081c15]/85 backdrop-blur-md text-[10px] font-bold text-[#74c69d]">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
   Store, 
@@ -14,10 +14,15 @@ import {
   Tag,
   ShieldCheck,
   Plus,
-  Trash2
+  Trash2,
+  BookOpen,
+  TrendingUp,
+  Image as ImageIcon,
+  Loader2
 } from 'lucide-react';
 import { useFarmerAuth } from '../../context/FarmerAuthContext';
 import { api } from '../../services/api';
+import { handleImageError } from '../../utils/imageFallback';
 
 export default function AddProductPage() {
   const { farmer, isApproved, verificationStatus } = useFarmerAuth();
@@ -41,13 +46,114 @@ export default function AddProductPage() {
     image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=600&q=80',
     additionalImages: [
       'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=400&q=80'
-    ]
+    ],
+    catalogueProductId: null,
+    catalogueItemRef: ''
   });
+
+  const [catalogueList, setCatalogueList] = useState([]);
+  const [catalogueSearch, setCatalogueSearch] = useState('');
+  const [selectedCatalogueItem, setSelectedCatalogueItem] = useState(null);
+  const [mandiBenchmark, setMandiBenchmark] = useState(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadSuccessMsg, setUploadSuccessMsg] = useState('');
 
   const [newImageUrl, setNewImageUrl] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Fetch catalogue products on mount
+  useEffect(() => {
+    async function loadCatalogue() {
+      try {
+        const res = await api.getCatalogueProducts({ limit: 100 });
+        if (res.success && Array.isArray(res.items)) {
+          setCatalogueList(res.items);
+        }
+      } catch (err) {
+        console.warn('Failed to load catalogue items for farmer selector', err);
+      }
+    }
+    loadCatalogue();
+  }, []);
+
+  // Update Mandi price comparison whenever commodity name or price changes
+  useEffect(() => {
+    async function updateMandi() {
+      const commodity = (formData.name || '').split(' ')[0];
+      if (commodity && commodity.length > 2) {
+        try {
+          const comp = await api.compareMandiPrice(commodity, formData.price);
+          if (comp && comp.success && comp.comparison) {
+            setMandiBenchmark(comp.comparison);
+          }
+        } catch (err) {
+          // Ignore
+        }
+      }
+    }
+    const timer = setTimeout(updateMandi, 400);
+    return () => clearTimeout(timer);
+  }, [formData.name, formData.price]);
+
+  const handleSelectFromCatalogue = (item) => {
+    setSelectedCatalogueItem(item);
+    setFormData((prev) => ({
+      ...prev,
+      name: item.name,
+      category: item.category || prev.category,
+      description: item.description || prev.description,
+      unit: item.agriculturalInfo?.recommendedUnit || prev.unit,
+      storageInstructions: item.agriculturalInfo?.storageGuidance || prev.storageInstructions,
+      image: item.image || prev.image,
+      catalogueProductId: item._id,
+      catalogueItemRef: item.catalogueId || item._id
+    }));
+    if (item.mandiBenchmark) {
+      setMandiBenchmark({
+        commodity: item.mandiBenchmark.commodity || item.name,
+        mandiModalPriceKg: item.mandiBenchmark.typicalModalPricePerKg || 30,
+        verdict: 'Mandi Benchmark Available'
+      });
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMsg('Image file size must be less than 5MB.');
+      return;
+    }
+
+    setIsUploadingImage(true);
+    setUploadSuccessMsg('');
+    setErrorMsg('');
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result;
+        const uploadRes = await api.uploadFarmerImage(base64, farmer?.id || 'farmer');
+        if (uploadRes && uploadRes.success && uploadRes.image) {
+          setFormData((prev) => ({
+            ...prev,
+            image: uploadRes.image.secureUrl || uploadRes.image.url
+          }));
+          setUploadSuccessMsg(`Harvest photo securely uploaded (${uploadRes.image.provider === 'cloudinary' ? 'Cloudinary Cloud' : 'Platform Storage'})!`);
+        } else {
+          setErrorMsg(uploadRes?.message || 'Failed to upload photo.');
+        }
+        setIsUploadingImage(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setErrorMsg(err.message || 'Image upload error');
+      setIsUploadingImage(false);
+    }
+  };
 
   const SAMPLE_IMAGES = [
     { label: 'Tomatoes', url: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=600&q=80' },
@@ -163,6 +269,57 @@ export default function AddProductPage() {
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 sm:p-8 border border-[#2d6a4f]/20 shadow-sm space-y-6">
+        
+        {/* OPTION A: Select from Agricultural Master Catalogue */}
+        <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-emerald-50 via-[#faf8f2] to-amber-50/50 border border-emerald-200/80 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-emerald-700" />
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-wider text-emerald-900">
+                  Select from Agricultural Master Catalogue (Recommended)
+                </h3>
+                <p className="text-[11px] text-gray-600">
+                  Auto-fill botanical details, nutritional facts, standard shelf life & live Mandi wholesale benchmark.
+                </p>
+              </div>
+            </div>
+            {selectedCatalogueItem && (
+              <span className="px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" /> Linked to {selectedCatalogueItem.name}
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <input
+              type="text"
+              placeholder="Search master crops (e.g. Tomato, Mango, Rice, Milk)..."
+              value={catalogueSearch}
+              onChange={(e) => setCatalogueSearch(e.target.value)}
+              className="sm:col-span-2 px-3.5 py-2 bg-white border border-emerald-300 rounded-2xl text-xs focus:outline-none"
+            />
+            <select
+              onChange={(e) => {
+                const found = catalogueList.find((c) => (c.catalogueId || c._id) === e.target.value);
+                if (found) handleSelectFromCatalogue(found);
+              }}
+              value={selectedCatalogueItem ? (selectedCatalogueItem.catalogueId || selectedCatalogueItem._id) : ''}
+              className="px-3 py-2 bg-white border border-emerald-300 rounded-2xl text-xs font-semibold focus:outline-none"
+            >
+              <option value="">-- Choose Catalogue Crop --</option>
+              {catalogueList
+                .filter((c) => !catalogueSearch || c.name.toLowerCase().includes(catalogueSearch.toLowerCase()) || c.category.includes(catalogueSearch.toLowerCase()))
+                .slice(0, 30)
+                .map((c) => (
+                  <option key={c.catalogueId || c._id} value={c.catalogueId || c._id}>
+                    {c.name} ({c.category})
+                  </option>
+                ))}
+            </select>
+          </div>
+        </div>
+
         {/* Name and Category */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="sm:col-span-2">
@@ -261,6 +418,34 @@ export default function AddProductPage() {
             />
           </div>
         </div>
+
+        {/* Live Mandi Benchmark & Pricing Guidance */}
+        {mandiBenchmark && (
+          <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-amber-700 flex-shrink-0" />
+              <div>
+                <span className="font-bold text-amber-900">
+                  AGMARKNET Mandi Rate for {mandiBenchmark.commodity || formData.name}:
+                </span>{' '}
+                <span className="text-gray-700 font-semibold">
+                  Wholesale Modal ₹{mandiBenchmark.mandiModalPriceKg}/kg
+                </span>
+                {mandiBenchmark.mandiMinPriceKg && (
+                  <span className="text-gray-500 text-[11px] ml-1">
+                    (Range: ₹{mandiBenchmark.mandiMinPriceKg} - ₹{mandiBenchmark.mandiMaxPriceKg})
+                  </span>
+                )}
+              </div>
+            </div>
+            {formData.price && (
+              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${mandiBenchmark.badgeClass || 'bg-white text-gray-800'}`}>
+                {mandiBenchmark.verdict || 'Fair Local Price'}
+                {mandiBenchmark.marginPercentage !== undefined && ` (${mandiBenchmark.marginPercentage > 0 ? '+' : ''}${mandiBenchmark.marginPercentage}%)`}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Harvest Date, Expiry Date & Storage Instructions */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -379,6 +564,36 @@ export default function AddProductPage() {
         {/* Primary and Multiple Images */}
         <div className="space-y-3">
           <label className="block text-xs font-bold text-gray-700">Crop Photography (Primary + Additional Images)</label>
+
+          {/* Cloudinary & Secure File Upload Box */}
+          <div className="p-4 rounded-2xl bg-emerald-50/60 border-2 border-dashed border-emerald-300 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0">
+                {isUploadingImage ? <Loader2 className="w-6 h-6 animate-spin" /> : <Upload className="w-6 h-6" />}
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-gray-900">Upload Real Harvest Photo from Device</h4>
+                <p className="text-[11px] text-gray-500">Supports JPEG, PNG, WebP up to 5MB. Stored securely via Cloudinary / Platform CDN.</p>
+                {uploadSuccessMsg && (
+                  <p className="text-[11px] text-emerald-700 font-semibold mt-1 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> {uploadSuccessMsg}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <label className="cursor-pointer px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-2xl text-xs font-bold shadow-sm transition shrink-0 flex items-center gap-2">
+              <ImageIcon className="w-4 h-4" />
+              <span>Choose Photo</span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleFileUpload}
+                disabled={isUploadingImage}
+                className="hidden"
+              />
+            </label>
+          </div>
           
           {/* Quick preset selector */}
           <div className="grid grid-cols-5 gap-2 mb-2">
@@ -393,7 +608,13 @@ export default function AddProductPage() {
                     : 'border-gray-200 hover:border-gray-400'
                 }`}
               >
-                <img src={img.url} alt={img.label} className="w-full h-12 rounded-xl object-cover" />
+                <img
+                  src={img.url}
+                  alt={img.label}
+                  loading="lazy"
+                  onError={(e) => handleImageError(e, 'vegetables')}
+                  className="w-full h-12 rounded-xl object-cover"
+                />
                 <span className="text-[10px] font-bold text-gray-700 mt-1 block truncate">{img.label}</span>
               </button>
             ))}
@@ -486,6 +707,8 @@ export default function AddProductPage() {
               <img
                 src={formData.image || 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=600&q=80'}
                 alt={formData.name || 'Produce'}
+                loading="lazy"
+                onError={(e) => handleImageError(e, formData.category)}
                 className="w-full h-40 object-cover"
               />
             </div>

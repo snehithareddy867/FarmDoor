@@ -12,7 +12,8 @@ import {
   Store,
   LayoutDashboard,
   Bike,
-  ShieldCheck
+  ShieldCheck,
+  BookOpen
 } from 'lucide-react';
 import { useCustomerAuth } from '../context/CustomerAuthContext';
 import { useCart } from '../context/CartContext';
@@ -107,6 +108,13 @@ export default function Navbar({
               >
                 <Store className="w-3.5 h-3.5 text-[#52b788]" />
                 Marketplace
+              </Link>
+              <Link 
+                to="/catalogue"
+                className="hover:text-[#74c69d] transition-colors py-1 text-white/90 font-medium flex items-center gap-1"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-[#52b788]" />
+                Agri Catalogue
               </Link>
               <button 
                 onClick={() => scrollToSection('categories')}

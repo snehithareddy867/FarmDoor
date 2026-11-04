@@ -26,6 +26,7 @@ import {
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { handleImageError, handleAvatarError } from '../../utils/imageFallback';
 import { useNotifications } from '../../context/NotificationContext';
 import { api } from '../../services/api';
 
@@ -310,6 +311,8 @@ export default function DashboardPage() {
                   <img
                     src={prod.images?.[0] || prod.image}
                     alt={prod.name}
+                    loading="lazy"
+                    onError={(e) => handleImageError(e, prod.category)}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   <div className="absolute top-2.5 left-2.5">
@@ -418,6 +421,8 @@ export default function DashboardPage() {
                   <img
                     src={farmer.avatar}
                     alt={farmer.name}
+                    loading="lazy"
+                    onError={(e) => handleAvatarError(e, 'farmer')}
                     className="w-12 h-12 rounded-xl object-cover border-2 border-[#52b788]"
                   />
                   <div>
@@ -477,6 +482,8 @@ export default function DashboardPage() {
                   <img
                     src={prod.images?.[0] || prod.image}
                     alt={prod.name}
+                    loading="lazy"
+                    onError={(e) => handleImageError(e, prod.category)}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   <div className="absolute top-2.5 left-2.5">

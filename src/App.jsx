@@ -21,6 +21,7 @@ import CustomerProtectedRoute from './components/customer/CustomerProtectedRoute
 import DashboardPage from './pages/customer/DashboardPage';
 import MarketplacePage from './pages/customer/MarketplacePage';
 import ProductDetailsPage from './pages/customer/ProductDetailsPage';
+import CatalogueExplorerPage from './pages/customer/CatalogueExplorerPage';
 import FarmerProfilePage from './pages/customer/FarmerProfilePage';
 import CartPage from './pages/customer/CartPage';
 import WishlistPage from './pages/customer/WishlistPage';
@@ -29,6 +30,7 @@ import OrderConfirmationPage from './pages/customer/OrderConfirmationPage';
 import OrdersPage from './pages/customer/OrdersPage';
 import OrderTrackingPage from './pages/customer/OrderTrackingPage';
 import ProfilePage from './pages/customer/ProfilePage';
+import PaymentsPage from './pages/customer/PaymentsPage';
 import ReviewsPage from './pages/customer/ReviewsPage';
 import NotificationsPage from './pages/customer/NotificationsPage';
 import SupportPage from './pages/customer/SupportPage';
@@ -112,6 +114,10 @@ export default function App() {
                         <Route path="/customer/marketplace" element={<MarketplacePage />} />
                         <Route path="/customer/product/:id" element={<ProductDetailsPage />} />
                         <Route path="/customer/farmer/:id" element={<FarmerProfilePage />} />
+                        <Route path="/catalogue" element={<CatalogueExplorerPage />} />
+                        <Route path="/catalogue/:id" element={<CatalogueExplorerPage />} />
+                        <Route path="/customer/catalogue" element={<CatalogueExplorerPage />} />
+                        <Route path="/customer/catalogue/:id" element={<CatalogueExplorerPage />} />
                       </Route>
 
                       {/* 4. Protected Customer Routes */}
@@ -128,8 +134,10 @@ export default function App() {
                         <Route path="/customer/checkout" element={<CheckoutPage />} />
                         <Route path="/customer/order-confirmation/:id" element={<OrderConfirmationPage />} />
                         <Route path="/customer/orders" element={<OrdersPage />} />
+                        <Route path="/customer/orders/:id/track" element={<OrderTrackingPage />} />
                         <Route path="/customer/order-tracking/:id" element={<OrderTrackingPage />} />
                         <Route path="/customer/profile" element={<ProfilePage />} />
+                        <Route path="/customer/payments" element={<PaymentsPage />} />
                         <Route path="/customer/reviews" element={<ReviewsPage />} />
                         <Route path="/customer/notifications" element={<NotificationsPage />} />
                         <Route path="/customer/support" element={<SupportPage />} />

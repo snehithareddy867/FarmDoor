@@ -15,6 +15,16 @@ export function DeliveryAuthProvider({ children }) {
     const saved = storageService.getCurrentDeliveryPartner();
     if (saved && activeRole === 'delivery') {
       setPartner(saved);
+      // Fetch latest profile from backend to ensure status is fresh
+      const pid = saved.partnerId || saved.id || saved._id;
+      if (pid) {
+        api.getDeliveryProfile(pid).then((fresh) => {
+          if (fresh && (fresh.verificationStatus || fresh.partnerId)) {
+            setPartner(fresh);
+            storageService.setCurrentDeliveryPartner(fresh);
+          }
+        }).catch(() => {});
+      }
     } else {
       setPartner(null);
     }
@@ -44,6 +54,7 @@ export function DeliveryAuthProvider({ children }) {
   const logout = () => {
     setPartner(null);
     storageService.remove(STORAGE_KEYS.DELIVERY_USER);
+    localStorage.removeItem('farmdoor_token');
     if (storageService.getActiveRole() === 'delivery') {
       storageService.clearActiveRole();
     }
@@ -56,6 +67,7 @@ export function DeliveryAuthProvider({ children }) {
     setPartner(updated);
     storageService.setCurrentDeliveryPartner(updated);
     storageService.updateDeliveryPartnerProfile(partner.id, updates);
+    api.updateDeliveryProfile(partner.id, updates).catch(() => {});
     return updated;
   };
 
@@ -95,11 +107,40 @@ export function DeliveryAuthProvider({ children }) {
   };
 
   const resubmitVerification = async (docs) => {
-    if (!partner?.id) return;
-    await api.resubmitDeliveryVerification(partner.id, docs);
-    const refreshed = storageService.getDeliveryPartnerById(partner.id);
+    const pid = partner?.partnerId || partner?.id;
+    if (!pid) return;
+    await api.resubmitDeliveryVerification(pid, docs);
+    const refreshed = storageService.getDeliveryPartnerById(pid);
     setPartner(refreshed);
     return refreshed;
+  };
+
+  const toggleVerificationStatusForTesting = async (status) => {
+    const pid = partner?.partnerId || partner?.id || partner?._id;
+    const isApp = status === 'Approved';
+    const updated = {
+      ...(partner || {}),
+      verificationStatus: status,
+      isVerified: isApp,
+      verificationBadge: isApp ? 'Verified Platform Courier' : (status === 'Pending' ? 'Under Review' : 'Rejected')
+    };
+
+    setPartner(updated);
+    storageService.setCurrentDeliveryPartner(updated);
+
+    if (pid) {
+      try {
+        await api.updateDeliveryProfile(pid, {
+          verificationStatus: status,
+          isVerified: isApp,
+          verificationBadge: updated.verificationBadge
+        });
+      } catch (e) {
+        console.warn('Backend courier status sync failed', e);
+      }
+    }
+
+    return updated;
   };
 
   const isApproved = partner?.verificationStatus === 'Approved';
@@ -127,7 +168,8 @@ export function DeliveryAuthProvider({ children }) {
         toggleAvailability,
         setServiceArea,
         requestLocationPermission,
-        resubmitVerification
+        resubmitVerification,
+        toggleVerificationStatusForTesting
       }}
     >
       {children}

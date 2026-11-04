@@ -40,15 +40,17 @@ export default function DeliveryDashboardPage() {
   const [earningsData, setEarningsData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const partnerIdentifier = partner?.partnerId || partner?.id || partner?._id;
+
   const loadDashboardData = async () => {
-    if (!partner?.id) return;
+    if (!partnerIdentifier) return;
     setLoading(true);
 
     const [avail, active, history, earnings] = await Promise.all([
-      api.getAvailableDeliveryRequests(partner.id, serviceArea),
-      api.getPartnerActiveDeliveries(partner.id),
-      api.getPartnerDeliveryHistory(partner.id),
-      api.getDeliveryPartnerEarnings(partner.id)
+      api.getAvailableDeliveryRequests(partnerIdentifier, serviceArea),
+      api.getPartnerActiveDeliveries(partnerIdentifier),
+      api.getPartnerDeliveryHistory(partnerIdentifier),
+      api.getDeliveryPartnerEarnings(partnerIdentifier)
     ]);
 
     setAvailableJobs(avail || []);
@@ -60,7 +62,7 @@ export default function DeliveryDashboardPage() {
 
   useEffect(() => {
     loadDashboardData();
-  }, [partner?.id, serviceArea]);
+  }, [partnerIdentifier, serviceArea]);
 
   const currentActiveJob = activeJobs.length > 0 ? activeJobs[0] : null;
   const completedJobsCount = historyJobs.filter((j) => j.status === 'Delivered').length;

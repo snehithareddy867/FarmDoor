@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 import { api } from '../../services/api';
+import { handleAvatarError } from '../../utils/imageFallback';
 
 export const AdminNavbar = ({ onToggleSidebar }) => {
   const { admin, logout, switchDemoAdmin } = useAdminAuth();
@@ -211,6 +212,8 @@ export const AdminNavbar = ({ onToggleSidebar }) => {
               <img
                 src={admin?.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&q=80'}
                 alt={admin?.name}
+                loading="lazy"
+                onError={(e) => handleAvatarError(e, 'admin')}
                 className="w-8 h-8 rounded-lg object-cover ring-2 ring-emerald-500/50"
               />
               <div className="text-left hidden sm:block">
@@ -247,6 +250,8 @@ export const AdminNavbar = ({ onToggleSidebar }) => {
                       <img
                         src={item.avatar}
                         alt={item.name}
+                        loading="lazy"
+                        onError={(e) => handleAvatarError(e, 'admin')}
                         className="w-8 h-8 rounded-lg object-cover"
                       />
                       <div className="flex-1 min-w-0">

@@ -14,6 +14,16 @@ export function FarmerAuthProvider({ children }) {
     const saved = storageService.get(STORAGE_KEYS.FARMER_USER);
     if (saved && activeRole === 'farmer') {
       setFarmer(saved);
+      // Fetch latest profile from backend to ensure status (Approved/Pending/Rejected) is fresh
+      const fid = saved.farmerId || saved.id || saved._id;
+      if (fid) {
+        api.getFarmerProfile(fid).then((fresh) => {
+          if (fresh && (fresh.verificationStatus || fresh.farmerId)) {
+            setFarmer(fresh);
+            storageService.set(STORAGE_KEYS.FARMER_USER, fresh);
+          }
+        }).catch(() => {});
+      }
     } else {
       setFarmer(null);
     }
@@ -43,6 +53,7 @@ export function FarmerAuthProvider({ children }) {
   const logout = () => {
     setFarmer(null);
     storageService.remove(STORAGE_KEYS.FARMER_USER);
+    localStorage.removeItem('farmdoor_token');
     if (storageService.getActiveRole() === 'farmer') {
       storageService.clearActiveRole();
     }
@@ -56,19 +67,58 @@ export function FarmerAuthProvider({ children }) {
     
     // Also update in all farmers collection
     const allFarmers = storageService.getFarmers();
-    const updatedAll = allFarmers.map((f) => (f.id === updated.id ? updated : f));
+    const updatedAll = allFarmers.map((f) => ((f.farmerId === updated.farmerId || f.id === updated.id) ? updated : f));
     storageService.set(STORAGE_KEYS.FARMERS, updatedAll);
+
+    const fid = updated.farmerId || updated.id || updated._id;
+    if (fid) {
+      try {
+        await api.updateFarmerProfile(fid, updates);
+      } catch (err) {
+        console.warn('Backend updateFarmerProfile notice:', err.message);
+      }
+    }
 
     return updated;
   };
 
   const resubmitVerification = async (updatedData) => {
-    if (farmer?.id) {
-      await api.resubmitFarmerVerification(farmer.id, updatedData);
-      const refreshed = storageService.getFarmerById(farmer.id);
-      setFarmer(refreshed);
-      return refreshed;
+    const fid = farmer?.farmerId || farmer?.id;
+    if (fid) {
+      const res = await api.resubmitFarmerVerification(fid, updatedData);
+      const updated = res?.farmer || res || { ...farmer, ...updatedData, verificationStatus: 'Pending' };
+      setFarmer(updated);
+      storageService.set(STORAGE_KEYS.FARMER_USER, updated);
+      return updated;
     }
+  };
+
+  const toggleVerificationStatusForTesting = async (status) => {
+    const fid = farmer?.farmerId || farmer?.id || farmer?._id;
+    const isApp = status === 'Approved';
+    const updated = {
+      ...(farmer || {}),
+      verificationStatus: status,
+      isVerified: isApp,
+      verificationBadge: isApp ? 'Verified Organic Grower' : (status === 'Pending' ? 'Verification Under Review' : 'Verification Rejected')
+    };
+
+    setFarmer(updated);
+    storageService.set(STORAGE_KEYS.FARMER_USER, updated);
+
+    if (fid) {
+      try {
+        await api.updateFarmerProfile(fid, {
+          verificationStatus: status,
+          isVerified: isApp,
+          verificationBadge: updated.verificationBadge
+        });
+      } catch (e) {
+        console.warn('Backend verification status sync failed', e);
+      }
+    }
+
+    return updated;
   };
 
   const isApproved = farmer?.verificationStatus === 'Approved';
@@ -87,7 +137,8 @@ export function FarmerAuthProvider({ children }) {
         register,
         logout,
         updateProfile,
-        resubmitVerification
+        resubmitVerification,
+        toggleVerificationStatusForTesting
       }}
     >
       {children}

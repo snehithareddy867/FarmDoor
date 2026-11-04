@@ -50,6 +50,7 @@ export function CustomerAuthProvider({ children }) {
   const logout = () => {
     setUser(null);
     storageService.remove(STORAGE_KEYS.CUSTOMER_USER);
+    localStorage.removeItem('farmdoor_token');
     if (storageService.getActiveRole() === 'customer') {
       storageService.clearActiveRole();
     }

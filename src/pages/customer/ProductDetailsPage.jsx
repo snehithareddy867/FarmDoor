@@ -18,11 +18,15 @@ import {
   ChevronRight,
   MessageCircle,
   Truck,
-  RotateCcw
+  RotateCcw,
+  TrendingUp,
+  BookOpen,
+  Sun
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { handleImageError } from '../../utils/imageFallback';
 
 export default function ProductDetailsPage() {
   const { id } = useParams();
@@ -38,6 +42,8 @@ export default function ProductDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [addedSuccess, setAddedSuccess] = useState(false);
   const [toastError, setToastError] = useState('');
+  const [mandiComparison, setMandiComparison] = useState(null);
+  const [catalogueInfo, setCatalogueInfo] = useState(null);
 
   useEffect(() => {
     async function loadData() {
@@ -46,14 +52,23 @@ export default function ProductDetailsPage() {
         const prod = await api.getProductById(id);
         if (prod) {
           setProduct(prod);
-          const [revs, relRes] = await Promise.all([
+          const commodity = (prod.name || '').split(' ')[0];
+          const [revs, relRes, mandiRes, catRes] = await Promise.all([
             api.getReviews(prod.id),
-            api.getProducts({ category: prod.category })
+            api.getProducts({ category: prod.category }),
+            api.compareMandiPrice(commodity, prod.price),
+            api.getCatalogueProductById(prod.catalogueProductId || prod.name)
           ]);
           setReviews(revs || []);
           setRelatedProducts(
             (relRes.products || []).filter((p) => p.id !== prod.id).slice(0, 3)
           );
+          if (mandiRes && mandiRes.comparison) {
+            setMandiComparison(mandiRes.comparison);
+          }
+          if (catRes && catRes.catalogueItem) {
+            setCatalogueInfo(catRes.catalogueItem);
+          }
         }
       } catch (err) {
         console.error('Failed to load product details:', err);
@@ -126,6 +141,8 @@ export default function ProductDetailsPage() {
             <img
               src={images[selectedImage] || images[0]}
               alt={product.name}
+              loading="lazy"
+              onError={(e) => handleImageError(e, product.category)}
               className="w-full h-full object-cover"
             />
             {product.isOrganic && (
@@ -210,7 +227,7 @@ export default function ProductDetailsPage() {
             </div>
 
             {/* Price & Unit Display */}
-            <div className="bg-[#faf8f2] p-4 rounded-2xl border border-gray-200/80 mb-6 flex items-baseline justify-between">
+            <div className="bg-[#faf8f2] p-4 rounded-2xl border border-gray-200/80 mb-4 flex items-baseline justify-between">
               <div>
                 <span className="text-[11px] uppercase font-bold text-gray-400 tracking-wider block">
                   Direct Farm-Gate Price
@@ -240,6 +257,22 @@ export default function ProductDetailsPage() {
                 )}
               </div>
             </div>
+
+            {/* Mandi Wholesale Benchmark Comparison */}
+            {mandiComparison && (
+              <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/90 text-xs mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-amber-700 shrink-0" />
+                  <div>
+                    <span className="font-bold text-amber-950">Mandi Wholesale Benchmark:</span>{' '}
+                    <span className="text-gray-700">₹{mandiComparison.mandiModalPriceKg}/kg APMC Modal</span>
+                  </div>
+                </div>
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${mandiComparison.badgeClass || 'bg-white text-gray-800'}`}>
+                  {mandiComparison.verdict}
+                </span>
+              </div>
+            )}
 
             {/* Harvest, Quality & Production Details */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-6 text-xs text-gray-600">
@@ -276,6 +309,44 @@ export default function ProductDetailsPage() {
                 </p>
               )}
             </div>
+
+            {/* Botanical & USDA Nutritional Guide (Inherited from Catalogue) */}
+            {catalogueInfo && (
+              <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-200/80 mb-6 space-y-2.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-emerald-950">
+                    <Leaf className="w-4 h-4 text-emerald-700" />
+                    <span>Botanical Taxonomy & USDA Nutritional Breakdown</span>
+                  </div>
+                  <Link
+                    to={`/catalogue/${catalogueInfo.catalogueId || catalogueInfo._id}`}
+                    className="text-[11px] font-bold text-emerald-800 hover:underline flex items-center gap-0.5"
+                  >
+                    <span>Full Agri Guide</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-1">
+                  <div className="p-2 rounded-xl bg-white border border-emerald-100">
+                    <span className="text-[9px] text-gray-400 block font-bold uppercase">Scientific Name</span>
+                    <span className="font-semibold text-emerald-900 italic truncate block">{catalogueInfo.scientificName || 'Cultivated Flora'}</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-white border border-emerald-100">
+                    <span className="text-[9px] text-gray-400 block font-bold uppercase">Calories</span>
+                    <span className="font-bold text-gray-900">{catalogueInfo.nutritionalInfo?.calories || 0} kcal / 100g</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-white border border-emerald-100">
+                    <span className="text-[9px] text-gray-400 block font-bold uppercase">Protein & Fiber</span>
+                    <span className="font-bold text-gray-900">P: {catalogueInfo.nutritionalInfo?.protein || 0}g • F: {catalogueInfo.nutritionalInfo?.fiber || 0}g</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-white border border-emerald-100">
+                    <span className="text-[9px] text-gray-400 block font-bold uppercase">Vitamin C</span>
+                    <span className="font-bold text-gray-900">{catalogueInfo.nutritionalInfo?.vitaminC || 0} mg</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Purchasing Controls */}
@@ -410,6 +481,8 @@ export default function ProductDetailsPage() {
                 <img
                   src={rel.images?.[0] || rel.image}
                   alt={rel.name}
+                  loading="lazy"
+                  onError={(e) => handleImageError(e, rel.category)}
                   className="w-20 h-20 rounded-2xl object-cover shrink-0"
                 />
                 <div className="flex flex-col justify-between">

@@ -33,7 +33,7 @@ export const PaymentManagementPage = () => {
     setLoading(true);
     try {
       const data = await api.getAllPaymentsAdmin();
-      setPayments(data);
+      setPayments(Array.isArray(data) ? data : (data?.payments || []));
     } catch (err) {
       console.error(err);
     } finally {

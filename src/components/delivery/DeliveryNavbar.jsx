@@ -17,6 +17,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { useDeliveryAuth } from '../../context/DeliveryAuthContext';
+import { handleAvatarError, AVATAR_FALLBACKS } from '../../utils/imageFallback';
 
 export default function DeliveryNavbar({ onToggleMobileSidebar }) {
   const { 
@@ -160,8 +161,10 @@ export default function DeliveryNavbar({ onToggleMobileSidebar }) {
               className="flex items-center gap-2 p-1.5 sm:px-2.5 sm:py-1.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition"
             >
               <img
-                src={partner?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'}
+                src={partner?.avatar || AVATAR_FALLBACKS.delivery}
                 alt={partner?.name || 'Rider'}
+                loading="lazy"
+                onError={(e) => handleAvatarError(e, 'delivery')}
                 className="w-7 h-7 rounded-full object-cover border border-[#52b788]/60"
               />
               <div className="text-left hidden md:block">

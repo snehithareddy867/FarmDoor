@@ -13,6 +13,7 @@ import {
   Camera
 } from 'lucide-react';
 import { useFarmerAuth } from '../../context/FarmerAuthContext';
+import { handleAvatarError, handleImageError, AVATAR_FALLBACKS } from '../../utils/imageFallback';
 
 export default function FarmerProfilePage() {
   const { farmer, updateProfile } = useFarmerAuth();
@@ -98,8 +99,10 @@ export default function FarmerProfilePage() {
         <div className="bg-white rounded-3xl p-6 border border-[#2d6a4f]/20 shadow-sm text-center flex flex-col items-center">
           <div className="relative mb-3">
             <img
-              src={formData.avatar}
+              src={formData.avatar || AVATAR_FALLBACKS.farmer}
               alt={formData.name}
+              loading="lazy"
+              onError={(e) => handleAvatarError(e, 'farmer')}
               className="w-28 h-28 rounded-full object-cover border-4 border-[#2d6a4f]/30 shadow-md"
             />
           </div>
@@ -292,7 +295,13 @@ export default function FarmerProfilePage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {(formData.farmPhotographs || []).map((imgUrl, idx) => (
                 <div key={idx} className="relative h-24 rounded-2xl overflow-hidden border border-gray-200 group">
-                  <img src={imgUrl} alt="Farm scene" className="w-full h-full object-cover" />
+                  <img
+                    src={imgUrl}
+                    alt="Farm scene"
+                    loading="lazy"
+                    onError={(e) => handleImageError(e, 'default')}
+                    className="w-full h-full object-cover"
+                  />
                   <button
                     type="button"
                     onClick={() => handleRemoveFarmPhoto(idx)}

@@ -19,12 +19,15 @@ import {
   Apple,
   Milk,
   Wheat,
-  Sprout
+  Sprout,
+  BookOpen,
+  ArrowRight
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { storageService } from '../../services/storage';
+import { handleImageError } from '../../utils/imageFallback';
 
 export default function MarketplacePage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -376,6 +379,32 @@ export default function MarketplacePage() {
 
         {/* Right Listings View */}
         <div className="lg:col-span-3 space-y-6">
+          {/* Agricultural Knowledge Catalogue Explorer Discovery Banner */}
+          <div className="bg-gradient-to-r from-emerald-50 via-[#faf8f2] to-amber-50/70 p-4 rounded-3xl border border-emerald-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-800 shrink-0">
+                <BookOpen className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-emerald-950 text-xs sm:text-sm">
+                  Agricultural Knowledge Catalogue & Botanical Guide
+                </h4>
+                <p className="text-gray-600 text-[11px] mt-0.5">
+                  {searchQuery
+                    ? `Explore botanical taxonomy, USDA nutritional breakdown & wholesale mandi rates for "${searchQuery}".`
+                    : 'Access USDA FoodData Central nutrition tables, Perenual plant taxonomy & AGMARKNET mandi rates.'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate(searchQuery ? `/catalogue?q=${encodeURIComponent(searchQuery)}` : '/catalogue')}
+              className="px-4 py-2 bg-[#1b4332] hover:bg-[#081c15] text-[#52b788] rounded-xl font-bold shrink-0 transition flex items-center gap-1.5 shadow-sm text-xs self-start sm:self-auto"
+            >
+              <span>Explore Crop Guide</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           {/* Sorting and Results Count Bar */}
           <div className="bg-white px-5 py-3 rounded-2xl border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <span className="font-semibold text-gray-600">
@@ -456,6 +485,8 @@ export default function MarketplacePage() {
                         <img
                           src={product.images?.[0] || product.image}
                           alt={product.name}
+                          loading="lazy"
+                          onError={(e) => handleImageError(e, product.category)}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
 

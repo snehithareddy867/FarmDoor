@@ -30,17 +30,19 @@ export default function FarmerOrdersPage() {
   const [rejectOrderTarget, setRejectOrderTarget] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
 
+  const farmerIdentifier = farmer?.farmerId || farmer?.id || farmer?._id;
+
   const fetchOrders = async () => {
-    if (!farmer?.id) return;
+    if (!farmerIdentifier) return;
     setLoading(true);
-    const ords = await api.getFarmerOrders(farmer.id);
+    const ords = await api.getFarmerOrders(farmerIdentifier);
     setOrders(ords || []);
     setLoading(false);
   };
 
   useEffect(() => {
     fetchOrders();
-  }, [farmer?.id]);
+  }, [farmerIdentifier]);
 
   const handleUpdateStatus = async (orderId, newStatus, note = '') => {
     await api.updateOrderStatusByFarmer(orderId, newStatus, note || `Farmer updated order to ${newStatus}`);
@@ -67,11 +69,12 @@ export default function FarmerOrdersPage() {
   };
 
   const filteredOrders = orders.filter((o) => {
-    if (filterStatus === 'new') return o.orderStatus === 'Placed' || o.orderStatus === 'New';
-    if (filterStatus === 'preparing') return o.orderStatus === 'Confirmed' || o.orderStatus === 'Preparing';
-    if (filterStatus === 'pickup') return o.orderStatus === 'Ready for pickup' || o.orderStatus === 'Out for delivery' || o.orderStatus === 'Picked up';
-    if (filterStatus === 'delivered') return o.orderStatus === 'Delivered';
-    if (filterStatus === 'cancelled') return o.orderStatus === 'Cancelled';
+    const s = (o.orderStatus || '').toLowerCase();
+    if (filterStatus === 'new') return s === 'placed' || s === 'new' || s === 'pending';
+    if (filterStatus === 'preparing') return s === 'confirmed' || s === 'preparing' || s === 'harvesting' || s === 'packed';
+    if (filterStatus === 'pickup') return s === 'ready for pickup' || s === 'out for delivery' || s === 'picked up' || s === 'pickup';
+    if (filterStatus === 'delivered') return s === 'delivered' || s === 'completed';
+    if (filterStatus === 'cancelled') return s === 'cancelled' || s === 'rejected';
     return true;
   });
 
@@ -175,9 +178,9 @@ export default function FarmerOrdersPage() {
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Customer Destination</span>
                     <p className="font-bold text-[#081c15] mt-1">{order.customerName}</p>
                     <p className="text-gray-600 text-[11px]">
-                      {order.deliveryAddress?.addressLine || order.shippingAddress?.streetAddress}, {order.deliveryAddress?.city || order.shippingAddress?.city}
+                      {order.deliveryAddress?.addressLine || order.shippingAddress?.addressLine || order.shippingAddress?.streetAddress || 'Pune Delivery Zone'}, {order.deliveryAddress?.city || order.shippingAddress?.city || 'Pune'}
                     </p>
-                    <p className="text-emerald-700 font-semibold text-[10px] mt-0.5">Phone: {order.customerPhone || order.shippingAddress?.phone}</p>
+                    <p className="text-emerald-700 font-semibold text-[10px] mt-0.5">Phone: {order.customerPhone || order.shippingAddress?.mobile || order.shippingAddress?.phone || 'Customer Phone on Record'}</p>
                   </div>
                 </div>
 
@@ -189,7 +192,7 @@ export default function FarmerOrdersPage() {
 
                   <div className="flex items-center gap-2">
                     {/* Stage 1: Placed -> Accept or Reject */}
-                    {order.orderStatus === 'Placed' && (
+                    {(order.orderStatus === 'Placed' || order.orderStatus === 'New') && (
                       <>
                         <button
                           onClick={() => handleUpdateStatus(order.id, 'Confirmed', 'Farmer accepted order for harvesting')}
@@ -209,8 +212,8 @@ export default function FarmerOrdersPage() {
                       </>
                     )}
 
-                    {/* Stage 2: Confirmed -> Prepare */}
-                    {order.orderStatus === 'Confirmed' && (
+                    {/* Stage 2: Confirmed / Harvesting -> Prepare */}
+                    {(order.orderStatus === 'Confirmed' || order.orderStatus === 'Harvesting') && (
                       <button
                         onClick={() => handleUpdateStatus(order.id, 'Preparing', 'Produce hand-picked from fields & boxed')}
                         className="px-3.5 py-1.5 rounded-xl bg-amber-600 text-white font-bold hover:bg-amber-700"
@@ -219,10 +222,10 @@ export default function FarmerOrdersPage() {
                       </button>
                     )}
 
-                    {/* Stage 3: Preparing -> Ready for pickup */}
-                    {order.orderStatus === 'Preparing' && (
+                    {/* Stage 3: Preparing / Packed -> Ready for pickup */}
+                    {(order.orderStatus === 'Preparing' || order.orderStatus === 'Packed') && (
                       <button
-                        onClick={() => handleUpdateStatus(order.id, 'Ready for pickup', 'Crates sealed & ready for dispatch')}
+                        onClick={() => handleUpdateStatus(order.id, 'Ready for Pickup', 'Crates sealed & ready for dispatch')}
                         className="px-3.5 py-1.5 rounded-xl bg-cyan-700 text-white font-bold hover:bg-cyan-800"
                       >
                         Mark Ready for Pickup
@@ -230,18 +233,18 @@ export default function FarmerOrdersPage() {
                     )}
 
                     {/* Stage 4: Ready for pickup -> Handover or Deliver */}
-                    {order.orderStatus === 'Ready for pickup' && (
+                    {(order.orderStatus === 'Ready for Pickup' || order.orderStatus === 'Ready for pickup') && (
                       <>
                         {isPlatform ? (
                           <button
-                            onClick={() => handleUpdateStatus(order.id, 'Picked up', 'Handed over crates to platform courier')}
+                            onClick={() => handleUpdateStatus(order.id, 'Out for Delivery', 'Handed over crates to platform courier')}
                             className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700"
                           >
                             Confirm Handover to Courier
                           </button>
                         ) : (
                           <button
-                            onClick={() => handleUpdateStatus(order.id, 'Out for delivery', 'Farmer vehicle en route to customer')}
+                            onClick={() => handleUpdateStatus(order.id, 'Out for Delivery', 'Farmer vehicle en route to customer')}
                             className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700"
                           >
                             Depart on Direct Farm Delivery
@@ -251,7 +254,7 @@ export default function FarmerOrdersPage() {
                     )}
 
                     {/* Stage 5: Out for delivery (Farmer Run) -> Complete */}
-                    {!isPlatform && (order.orderStatus === 'Out for delivery' || order.orderStatus === 'Ready for pickup') && (
+                    {!isPlatform && (order.orderStatus === 'Out for Delivery' || order.orderStatus === 'Out for delivery') && (
                       <button
                         onClick={() => handleUpdateStatus(order.id, 'Delivered', 'Farmer hand-delivered fresh produce at customer doorstep')}
                         className="px-3.5 py-1.5 rounded-xl bg-[#081c15] text-[#52b788] font-bold hover:bg-[#1b4332]"

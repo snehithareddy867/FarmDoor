@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Heart, Trash2, ShoppingCart, ArrowLeft, Star, MapPin, AlertCircle, Package } from 'lucide-react';
 import { useWishlist } from '../../context/WishlistContext';
 import { useCart } from '../../context/CartContext';
+import { handleImageError } from '../../utils/imageFallback';
 
 export default function WishlistPage() {
   const navigate = useNavigate();
@@ -67,6 +68,8 @@ export default function WishlistPage() {
                     <img
                       src={item.image}
                       alt={item.name}
+                      loading="lazy"
+                      onError={(e) => handleImageError(e, item.category)}
                       className="w-full h-full object-cover"
                     />
                     {isOutOfStock ? (

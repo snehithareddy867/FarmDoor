@@ -27,14 +27,16 @@ export default function FarmerDashboardPage() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const farmerIdentifier = farmer?.farmerId || farmer?.id || farmer?._id;
+
   useEffect(() => {
     const fetchData = async () => {
-      if (!farmer?.id) return;
+      if (!farmerIdentifier) return;
       setLoading(true);
       const [p, o, e, notifs] = await Promise.all([
-        api.getFarmerProducts(farmer.id),
-        api.getFarmerOrders(farmer.id),
-        api.getFarmerEarnings(farmer.id),
+        api.getFarmerProducts(farmerIdentifier),
+        api.getFarmerOrders(farmerIdentifier),
+        api.getFarmerEarnings(farmerIdentifier),
         api.getNotifications()
       ]);
       setProducts(p || []);
@@ -44,7 +46,7 @@ export default function FarmerDashboardPage() {
       setLoading(false);
     };
     fetchData();
-  }, [farmer?.id]);
+  }, [farmerIdentifier]);
 
   const activeProducts = products.filter((p) => p.inStock && (p.availableQuantity || p.stock || 0) > 0);
   const outOfStockProducts = products.filter((p) => !p.inStock || (p.availableQuantity || p.stock || 0) <= 0);

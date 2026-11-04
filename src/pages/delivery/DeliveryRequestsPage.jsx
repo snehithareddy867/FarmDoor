@@ -32,17 +32,19 @@ export default function DeliveryRequestsPage() {
   const [acceptingId, setAcceptingId] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
 
+  const partnerIdentifier = partner?.partnerId || partner?.id || partner?._id;
+
   const fetchJobs = async () => {
-    if (!partner?.id) return;
+    if (!partnerIdentifier) return;
     setLoading(true);
-    const jobs = await api.getAvailableDeliveryRequests(partner.id, serviceArea);
+    const jobs = await api.getAvailableDeliveryRequests(partnerIdentifier, serviceArea);
     setRequests(jobs || []);
     setLoading(false);
   };
 
   useEffect(() => {
     fetchJobs();
-  }, [partner?.id, serviceArea]);
+  }, [partnerIdentifier, serviceArea]);
 
   const handleAcceptJob = async (jobId) => {
     if (!isApproved) {

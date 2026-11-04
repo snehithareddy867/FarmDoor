@@ -26,15 +26,20 @@ const PROGRESSION_STEPS = [
 ];
 
 export default function OrderTrackingPage() {
-  const { orderId } = useParams();
+  const { id, orderId } = useParams();
+  const effectiveId = id || orderId;
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchOrder() {
+      if (!effectiveId) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
-        const data = await api.getOrderById(orderId);
+        const data = await api.getOrderById(effectiveId);
         setOrder(data);
       } catch (err) {
         console.error('Failed to load tracking data:', err);
@@ -43,7 +48,7 @@ export default function OrderTrackingPage() {
       }
     }
     fetchOrder();
-  }, [orderId]);
+  }, [effectiveId]);
 
   if (loading) {
     return (

@@ -18,19 +18,21 @@ export default function FarmerReviewsPage() {
   const [replyText, setReplyText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const farmerIdentifier = farmer?.farmerId || farmer?.id || farmer?._id;
+
   const fetchReviews = async () => {
-    if (!farmer?.id) return;
-    const r = await api.getFarmerReviews(farmer.id);
+    if (!farmerIdentifier) return;
+    const r = await api.getFarmerReviews(farmerIdentifier);
     setReviews(r || []);
   };
 
   useEffect(() => {
     fetchReviews();
-  }, [farmer?.id]);
+  }, [farmerIdentifier]);
 
   const handleOpenReply = (review) => {
     setReplyModalReview(review);
-    setReplyText(review.farmerReply?.replyText || '');
+    setReplyText(review.farmerReply?.replyText || review.farmerReply?.text || '');
   };
 
   const handleSubmitReply = async (e) => {
@@ -38,7 +40,7 @@ export default function FarmerReviewsPage() {
     if (!replyModalReview || !replyText.trim()) return;
 
     setIsSubmitting(true);
-    await api.addFarmerReply(replyModalReview.id, replyText.trim());
+    await api.addFarmerReply(replyModalReview.id || replyModalReview.reviewId, replyText.trim());
     setIsSubmitting(false);
     setReplyModalReview(null);
     fetchReviews();
@@ -101,12 +103,12 @@ export default function FarmerReviewsPage() {
               </p>
 
               {/* Farmer Reply if exists */}
-              {rev.farmerReply && (
+              {rev.farmerReply && (rev.farmerReply.replyText || rev.farmerReply.text) && (
                 <div className="p-3.5 rounded-2xl bg-[#faf8f2] border-l-4 border-[#2d6a4f] text-xs">
                   <span className="font-bold text-[#081c15] block mb-0.5">
-                    Farmer Reply ({farmer?.name}):
+                    Farmer Reply ({farmer?.name || farmer?.farmName || 'Cultivator'}):
                   </span>
-                  <p className="text-gray-700">{rev.farmerReply.replyText}</p>
+                  <p className="text-gray-700">{rev.farmerReply.replyText || rev.farmerReply.text}</p>
                 </div>
               )}
 

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useFarmerAuth } from '../../context/FarmerAuthContext';
 import { api } from '../../services/api';
+import { handleImageError } from '../../utils/imageFallback';
 
 export default function ManageProductsPage() {
   const { farmer } = useFarmerAuth();
@@ -37,17 +38,19 @@ export default function ManageProductsPage() {
     description: ''
   });
 
+  const farmerIdentifier = farmer?.farmerId || farmer?.id || farmer?._id;
+
   const fetchProducts = async () => {
-    if (!farmer?.id) return;
+    if (!farmerIdentifier) return;
     setLoading(true);
-    const p = await api.getFarmerProducts(farmer.id);
+    const p = await api.getFarmerProducts(farmerIdentifier);
     setProducts(p || []);
     setLoading(false);
   };
 
   useEffect(() => {
     fetchProducts();
-  }, [farmer?.id]);
+  }, [farmerIdentifier]);
 
   const handleToggleStock = async (product) => {
     const updatedStock = product.inStock ? 0 : 25;
@@ -187,6 +190,8 @@ export default function ManageProductsPage() {
                     <img
                       src={product.image}
                       alt={product.name}
+                      loading="lazy"
+                      onError={(e) => handleImageError(e, product.category)}
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute top-3 left-3 flex flex-col gap-1">

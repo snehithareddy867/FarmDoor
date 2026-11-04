@@ -58,7 +58,7 @@ export default function FarmerVerificationPage() {
               }`}>
                 {verificationStatus} Status
               </span>
-              <span className="text-xs text-gray-400">• Farmer ID: #{farmer?.id}</span>
+              <span className="text-xs text-gray-400">• Farmer ID: #{farmer?.farmerId || farmer?.id || farmer?._id}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black font-outfit text-[#081c15]">
               Agricultural Verification & Organic Compliance

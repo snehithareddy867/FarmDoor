@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { handleImageError } from '../utils/imageFallback';
 import { 
   X, 
   Star, 
@@ -52,6 +53,8 @@ export default function ProductModal({ product, isOpen, onClose, onAddToCart, on
             <img
               src={product.image}
               alt={product.name}
+              loading="lazy"
+              onError={(e) => handleImageError(e, product.category)}
               className="w-full h-full object-cover"
             />
             <div className="absolute top-4 left-4">

@@ -15,6 +15,7 @@ import {
   X
 } from 'lucide-react';
 import { useFarmerAuth } from '../../context/FarmerAuthContext';
+import { handleAvatarError } from '../../utils/imageFallback';
 
 export default function FarmerNavbar({ onToggleMobileSidebar }) {
   const navigate = useNavigate();
@@ -152,7 +153,9 @@ export default function FarmerNavbar({ onToggleMobileSidebar }) {
             >
               <img
                 src={farmer?.avatar}
-                alt=""
+                alt={farmer?.name || 'Farmer Avatar'}
+                loading="lazy"
+                onError={(e) => handleAvatarError(e, 'farmer')}
                 className="w-7 h-7 rounded-lg object-cover border border-[#52b788]"
               />
               <div className="hidden sm:flex flex-col">

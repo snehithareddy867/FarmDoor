@@ -56,10 +56,12 @@ export default function ActiveDeliveriesPage() {
   const [failNotes, setFailNotes] = useState('');
   const [returnAction, setReturnAction] = useState('Returned to Agro Cold Staging Hub');
 
+  const partnerIdentifier = partner?.partnerId || partner?.id || partner?._id;
+
   const fetchActiveDeliveries = async () => {
-    if (!partner?.id) return;
+    if (!partnerIdentifier) return;
     setLoading(true);
-    const jobs = await api.getPartnerActiveDeliveries(partner.id);
+    const jobs = await api.getPartnerActiveDeliveries(partnerIdentifier);
     setActiveJobs(jobs || []);
     if (jobs && jobs.length > 0) {
       // Pick first active or maintain selected
@@ -76,7 +78,7 @@ export default function ActiveDeliveriesPage() {
 
   useEffect(() => {
     fetchActiveDeliveries();
-  }, [partner?.id]);
+  }, [partnerIdentifier]);
 
   // Stepper milestones
   const WORKFLOW_STEPS = [
@@ -89,13 +91,14 @@ export default function ActiveDeliveriesPage() {
   ];
 
   const getStepIndex = (status) => {
-    if (status === 'Assigned') return 0;
-    if (status === 'Accepted') return 1;
-    if (status === 'Reached pickup location') return 2;
-    if (status === 'Picked up') return 3;
-    if (status === 'In transit') return 4;
-    if (status === 'Out for delivery') return 5;
-    if (status === 'Delivered') return 6;
+    const s = (status || '').toLowerCase();
+    if (s === 'assigned') return 0;
+    if (s === 'accepted' || s === 'en route to farm') return 1;
+    if (s === 'reached pickup location' || s === 'arrived at farm') return 2;
+    if (s === 'picked up') return 3;
+    if (s === 'in transit') return 4;
+    if (s === 'out for delivery') return 5;
+    if (s === 'delivered') return 6;
     return 1;
   };
 

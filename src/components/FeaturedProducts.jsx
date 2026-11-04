@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { api } from '../services/api';
+import { handleImageError } from '../utils/imageFallback';
 import { 
   ShoppingCart, 
   Star, 
@@ -36,8 +37,9 @@ export default function FeaturedProducts({
           api.getCategories()
         ]);
         if (isMounted) {
-          setProducts(Array.isArray(prodList) ? prodList : []);
-          setCategories(Array.isArray(catList) ? catList : []);
+          const productArray = Array.isArray(prodList) ? prodList : (prodList?.products || []);
+          setProducts(productArray);
+          setCategories(Array.isArray(catList) ? catList : (catList?.categories || []));
         }
       } catch (err) {
         if (isMounted) {
@@ -181,6 +183,8 @@ export default function FeaturedProducts({
                     <img
                       src={product.image}
                       alt={product.name}
+                      loading="lazy"
+                      onError={(e) => handleImageError(e, product.category)}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
 

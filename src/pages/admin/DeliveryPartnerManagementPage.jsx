@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAdminAuth } from '../../context/AdminAuthContext';
+import { handleAvatarError, AVATAR_FALLBACKS } from '../../utils/imageFallback';
 
 export const DeliveryPartnerManagementPage = () => {
   const { admin } = useAdminAuth();
@@ -379,8 +380,10 @@ export const DeliveryPartnerManagementPage = () => {
             <div className="flex items-center justify-between pb-4 border-b border-slate-800">
               <div className="flex items-center gap-3">
                 <img
-                  src={selectedPartner.profilePhoto || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80'}
+                  src={selectedPartner.profilePhoto || AVATAR_FALLBACKS.delivery}
                   alt={selectedPartner.fullName}
+                  loading="lazy"
+                  onError={(e) => handleAvatarError(e, 'delivery')}
                   className="w-12 h-12 rounded-xl object-cover ring-2 ring-emerald-500/40"
                 />
                 <div>

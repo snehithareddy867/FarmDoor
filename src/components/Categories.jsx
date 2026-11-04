@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { handleImageError, CATEGORY_FALLBACK_IMAGES } from '../utils/imageFallback';
 import { 
   ArrowUpRight, 
   Sparkles, 
@@ -91,8 +92,10 @@ export default function Categories({ selectedCategory, onSelectCategory }) {
                 {/* Image Top */}
                 <div className="relative h-44 overflow-hidden">
                   <img
-                    src={cat.image}
+                    src={cat.image || CATEGORY_FALLBACK_IMAGES[cat.slug] || CATEGORY_FALLBACK_IMAGES.default}
                     alt={cat.name}
+                    loading="lazy"
+                    onError={(e) => handleImageError(e, cat.slug)}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#081c15]/80 via-transparent to-black/20" />

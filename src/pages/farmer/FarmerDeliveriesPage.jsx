@@ -22,15 +22,17 @@ export default function FarmerDeliveriesPage() {
   const [activeTab, setActiveTab] = useState('all');
   const [toastMsg, setToastMsg] = useState('');
 
+  const farmerIdentifier = farmer?.farmerId || farmer?.id || farmer?._id;
+
   const fetchOrders = async () => {
-    if (!farmer?.id) return;
-    const ords = await api.getFarmerOrders(farmer.id);
+    if (!farmerIdentifier) return;
+    const ords = await api.getFarmerOrders(farmerIdentifier);
     setOrders(ords || []);
   };
 
   useEffect(() => {
     fetchOrders();
-  }, [farmer?.id]);
+  }, [farmerIdentifier]);
 
   const handleUpdateDelivery = async (orderId, status, note) => {
     await api.updateOrderStatusByFarmer(orderId, status, note);
@@ -39,9 +41,12 @@ export default function FarmerDeliveriesPage() {
     setTimeout(() => setToastMsg(''), 3000);
   };
 
+  const isPlatformOrder = (o) => o.deliveryMethod !== 'farmer';
+  const isFarmerOrder = (o) => o.deliveryMethod === 'farmer';
+
   const filtered = orders.filter((o) => {
-    if (activeTab === 'platform') return o.deliveryMethod === 'platform';
-    if (activeTab === 'farmer') return o.deliveryMethod === 'farmer';
+    if (activeTab === 'platform') return isPlatformOrder(o);
+    if (activeTab === 'farmer') return isFarmerOrder(o);
     return true;
   });
 
@@ -81,7 +86,7 @@ export default function FarmerDeliveriesPage() {
               activeTab === 'platform' ? 'bg-[#081c15] text-[#52b788]' : 'text-gray-600'
             }`}
           >
-            Platform Fleet ({orders.filter(o => o.deliveryMethod === 'platform').length})
+            Platform Fleet ({orders.filter(isPlatformOrder).length})
           </button>
           <button
             onClick={() => setActiveTab('farmer')}
@@ -89,15 +94,26 @@ export default function FarmerDeliveriesPage() {
               activeTab === 'farmer' ? 'bg-[#081c15] text-[#52b788]' : 'text-gray-600'
             }`}
           >
-            Farmer Direct ({orders.filter(o => o.deliveryMethod === 'farmer').length})
+            Farmer Direct ({orders.filter(isFarmerOrder).length})
           </button>
         </div>
       </div>
 
       {/* Deliveries List */}
       <div className="space-y-4">
-        {filtered.map((order) => {
-          const isPlatform = order.deliveryMethod === 'platform';
+        {filtered.length === 0 ? (
+          <div className="bg-white rounded-3xl p-12 text-center border border-[#2d6a4f]/20 shadow-sm">
+            <div className="w-14 h-14 rounded-3xl bg-[#faf8f2] text-[#2d6a4f] flex items-center justify-center mx-auto mb-4 border border-[#2d6a4f]/20">
+              <Truck className="w-7 h-7" />
+            </div>
+            <h3 className="text-base font-bold text-[#081c15]">No Active Dispatches</h3>
+            <p className="text-xs text-gray-500 max-w-sm mx-auto mt-1">
+              Customer orders marked "Ready for Pickup" or "Out for Delivery" will display live courier assignment and delivery tracking here.
+            </p>
+          </div>
+        ) : (
+          filtered.map((order) => {
+            const isPlatform = isPlatformOrder(order);
           const isDelivered = order.orderStatus === 'Delivered';
 
           return (
@@ -234,7 +250,7 @@ export default function FarmerDeliveriesPage() {
               </div>
             </div>
           );
-        })}
+        }))}
       </div>
     </div>
   );

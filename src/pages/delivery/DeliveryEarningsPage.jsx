@@ -20,16 +20,18 @@ export default function DeliveryEarningsPage() {
   const [earningsData, setEarningsData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const partnerIdentifier = partner?.partnerId || partner?.id || partner?._id;
+
   useEffect(() => {
     const fetchEarnings = async () => {
-      if (!partner?.id) return;
+      if (!partnerIdentifier) return;
       setLoading(true);
-      const data = await api.getDeliveryPartnerEarnings(partner.id);
+      const data = await api.getDeliveryPartnerEarnings(partnerIdentifier);
       setEarningsData(data);
       setLoading(false);
     };
     fetchEarnings();
-  }, [partner?.id]);
+  }, [partnerIdentifier]);
 
   return (
     <div className="space-y-6">

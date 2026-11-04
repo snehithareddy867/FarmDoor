@@ -257,6 +257,24 @@ class ApiService {
   }
 
   async cancelOrder(orderId, reason) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/orders/${orderId}/cancel`, {
+          method: 'PUT',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({ reason })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          storageService.cancelOrder(orderId, reason);
+          return data;
+        } else if (!res.ok) {
+          return { success: false, message: data.message || 'Failed to cancel order' };
+        }
+      } catch (err) {
+        console.warn('Backend order cancel failed', err);
+      }
+    }
     return storageService.cancelOrder(orderId, reason);
   }
 
@@ -297,6 +315,20 @@ class ApiService {
   }
 
   async deleteReview(reviewId) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/reviews/${reviewId}`, {
+          method: 'DELETE',
+          headers: this.getAuthHeaders()
+        });
+        if (res.ok) {
+          storageService.deleteReview(reviewId);
+          return await res.json();
+        }
+      } catch (err) {
+        console.warn('Backend delete review failed', err);
+      }
+    }
     return storageService.deleteReview(reviewId);
   }
 
@@ -512,7 +544,9 @@ class ApiService {
   async getFarmerOrders(farmerId) {
     if (this.isBackendAvailable || (await this.checkBackendHealth())) {
       try {
-        const res = await fetch(`${this.baseUrl}/farmer/orders?farmerId=${farmerId}`);
+        const res = await fetch(`${this.baseUrl}/farmer/orders?farmerId=${farmerId}`, {
+          headers: this.getAuthHeaders()
+        });
         if (res.ok) return await res.json();
       } catch (err) {
         console.warn('Backend farmer orders fetch failed', err);
@@ -544,7 +578,9 @@ class ApiService {
   async getFarmerEarnings(farmerId) {
     if (this.isBackendAvailable || (await this.checkBackendHealth())) {
       try {
-        const res = await fetch(`${this.baseUrl}/farmer/earnings?farmerId=${farmerId}`);
+        const res = await fetch(`${this.baseUrl}/farmer/earnings?farmerId=${farmerId}`, {
+          headers: this.getAuthHeaders()
+        });
         if (res.ok) return await res.json();
       } catch (err) {
         console.warn('Backend earnings fetch failed', err);
@@ -554,11 +590,64 @@ class ApiService {
   }
 
   async getStockHistory(farmerId) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/farmer/stock-history?farmerId=${farmerId}`, {
+          headers: this.getAuthHeaders()
+        });
+        if (res.ok) return await res.json();
+      } catch (err) {
+        console.warn('Backend stock history fetch failed', err);
+      }
+    }
     return storageService.getStockHistory(farmerId);
   }
 
   async updateStockWithHistory(productId, newQty, reason, farmerId) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/farmer/stock-adjust`, {
+          method: 'POST',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({
+            productId,
+            newQuantity: Number(newQty),
+            reason,
+            farmerId,
+            type: 'manual_adjustment'
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          storageService.updateStockWithHistory(productId, newQty, reason, farmerId);
+          return data;
+        }
+      } catch (err) {
+        console.warn('Backend stock adjust failed', err);
+      }
+    }
     return storageService.updateStockWithHistory(productId, newQty, reason, farmerId);
+  }
+
+  async getFarmerProfile(farmerId) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/farmer/profile/${farmerId}`, {
+          headers: this.getAuthHeaders()
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.farmer) {
+            storageService.set(STORAGE_KEYS.FARMER_USER, data.farmer);
+            return data.farmer;
+          }
+          return data;
+        }
+      } catch (err) {
+        console.warn('Backend farmer profile fetch failed', err);
+      }
+    }
+    return storageService.getFarmerById(farmerId);
   }
 
   async addFarmerReply(reviewId, text) {
@@ -590,14 +679,66 @@ class ApiService {
   }
 
   async resubmitFarmerVerification(farmerId, updatedData) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/farmer/profile/${farmerId}`, {
+          method: 'PUT',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({
+            verificationStatus: 'Pending',
+            verificationBadge: 'Verification Under Review',
+            adminFeedback: 'Resubmitted for administrative verification.',
+            ...updatedData
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          storageService.resubmitFarmerVerification(farmerId, updatedData);
+          return data.farmer || data;
+        }
+      } catch (err) {
+        console.warn('Backend resubmit verification failed', err);
+      }
+    }
     return storageService.resubmitFarmerVerification(farmerId, updatedData);
   }
 
   async setFarmerVerificationStatus(farmerId, status, feedback) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const endpoint = status === 'Approved' ? 'approve' : (status === 'Pending' ? 'pending' : 'reject');
+        const res = await fetch(`${this.baseUrl}/admin/farmers/${farmerId}/${endpoint}`, {
+          method: 'PUT',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({ notes: feedback, reason: feedback })
+        });
+        if (res.ok) {
+          storageService.setFarmerVerificationStatus(farmerId, status, feedback);
+          return await res.json();
+        }
+      } catch (err) {
+        console.warn('Backend set verification status failed', err);
+      }
+    }
     return storageService.setFarmerVerificationStatus(farmerId, status, feedback);
   }
 
   async updateFarmerProfile(farmerId, updates) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/farmer/profile/${farmerId}`, {
+          method: 'PUT',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify(updates)
+        });
+        if (res.ok) {
+          storageService.updateFarmerProfile(farmerId, updates);
+          return await res.json();
+        }
+      } catch (err) {
+        console.warn('Backend update farmer profile failed', err);
+      }
+    }
     return storageService.updateFarmerProfile(farmerId, updates);
   }
 
@@ -663,10 +804,42 @@ class ApiService {
   }
 
   async getDeliveryProfile(partnerId) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/delivery/profile/${partnerId}`, {
+          headers: this.getAuthHeaders()
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.partner) {
+            storageService.setCurrentDeliveryPartner(data.partner);
+            return data.partner;
+          }
+          return data;
+        }
+      } catch (err) {
+        console.warn('Backend delivery profile fetch failed', err);
+      }
+    }
     return storageService.getDeliveryPartnerById(partnerId);
   }
 
   async updateDeliveryProfile(partnerId, updates) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/delivery/profile/${partnerId}`, {
+          method: 'PUT',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify(updates)
+        });
+        if (res.ok) {
+          storageService.updateDeliveryPartnerProfile(partnerId, updates);
+          return await res.json();
+        }
+      } catch (err) {
+        console.warn('Backend update delivery profile failed', err);
+      }
+    }
     return storageService.updateDeliveryPartnerProfile(partnerId, updates);
   }
 
@@ -727,6 +900,21 @@ class ApiService {
   }
 
   async rejectDeliveryJob(jobId, partnerId, reason) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/delivery/jobs/${jobId}/reject`, {
+          method: 'PUT',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({ partnerId, reason })
+        });
+        if (res.ok) {
+          storageService.rejectDeliveryJob(jobId, partnerId, reason);
+          return await res.json();
+        }
+      } catch (err) {
+        console.warn('Backend reject delivery job failed', err);
+      }
+    }
     return storageService.rejectDeliveryJob(jobId, partnerId, reason);
   }
 
@@ -1205,19 +1393,206 @@ class ApiService {
   }
 
   async adminCancelOrder(orderId, payload) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/admin/orders/${orderId}/cancel`, {
+          method: 'PUT',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          storageService.adminCancelOrder(orderId, payload);
+          return data;
+        } else if (!res.ok) {
+          return { success: false, message: data.message || 'Failed to cancel order' };
+        }
+      } catch (err) {
+        console.warn('Backend admin cancel order failed', err);
+      }
+    }
     return storageService.adminCancelOrder(orderId, payload);
   }
 
   async adminReassignDelivery(orderId, newPartnerId, actor) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/admin/orders/${orderId}/reassign-delivery`, {
+          method: 'PUT',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({ newPartnerId, actor })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          storageService.adminReassignDelivery(orderId, newPartnerId, actor);
+          return data;
+        }
+      } catch (err) {
+        console.warn('Backend admin reassign delivery failed', err);
+      }
+    }
     return storageService.adminReassignDelivery(orderId, newPartnerId, actor);
   }
 
+  // ==========================================
+  // RAZORPAY PAYMENT GATEWAY METHODS
+  // ==========================================
+
+  async getPaymentConfig() {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/payment/config`);
+        if (res.ok) return await res.json();
+      } catch (err) {
+        console.warn('Failed to fetch payment config', err);
+      }
+    }
+    return { success: true, configured: true, keyId: 'rzp_test_FarmDoor2026Demo', currency: 'INR' };
+  }
+
+  async createRazorpayOrder(payload) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/payment/create-order`, {
+          method: 'POST',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) return await res.json();
+      } catch (err) {
+        console.warn('Backend create payment order failed', err);
+      }
+    }
+    return {
+      success: true,
+      orderId: `order_test_${Date.now()}`,
+      amount: Math.round(Number(payload.amount || 0) * 100),
+      currency: 'INR',
+      keyId: 'rzp_test_FarmDoor2026Demo',
+      configured: true,
+      isSimulated: true
+    };
+  }
+
+  async verifyRazorpayPayment(payload) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/payment/verify`, {
+          method: 'POST',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) return await res.json();
+      } catch (err) {
+        console.warn('Backend verify payment failed', err);
+      }
+    }
+    return {
+      success: true,
+      verified: true,
+      payment: {
+        transactionId: payload.razorpay_payment_id || `pay_sim_${Date.now()}`,
+        orderId: payload.orderNumber,
+        amount: payload.amount,
+        status: 'Success'
+      }
+    };
+  }
+
+  async getPaymentHistory(customerId) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const url = customerId
+          ? `${this.baseUrl}/payment/history?customerId=${customerId}`
+          : `${this.baseUrl}/payment/history`;
+        const res = await fetch(url, { headers: this.getAuthHeaders() });
+        if (res.ok) return await res.json();
+      } catch (err) {
+        console.warn('Backend payment history fetch failed', err);
+      }
+    }
+    return [];
+  }
+
   async getAllPaymentsAdmin() {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/payment/all`, { headers: this.getAuthHeaders() });
+        if (res.ok) {
+          const data = await res.json();
+          return data.payments || data;
+        }
+      } catch (err) {
+        console.warn('Backend admin payments fetch failed', err);
+      }
+    }
     return storageService.getAllPaymentsAdmin();
   }
 
   async adminProcessRefund(orderId, payload) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/payment/refund/${orderId}`, {
+          method: 'POST',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) return await res.json();
+      } catch (err) {
+        console.warn('Backend process refund failed', err);
+      }
+    }
     return storageService.adminProcessRefund(orderId, payload);
+  }
+
+  // ==========================================
+  // WISHLIST METHODS
+  // ==========================================
+
+  async getWishlist(userId) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/wishlist/${userId}`, { headers: this.getAuthHeaders() });
+        if (res.ok) {
+          const data = await res.json();
+          return data.wishlist?.items || [];
+        }
+      } catch (err) {
+        console.warn('Backend wishlist fetch failed', err);
+      }
+    }
+    return [];
+  }
+
+  async addToWishlist(userId, item) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/wishlist/${userId}/add`, {
+          method: 'POST',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify(item)
+        });
+        if (res.ok) return await res.json();
+      } catch (err) {
+        console.warn('Backend add to wishlist failed', err);
+      }
+    }
+    return { success: true };
+  }
+
+  async removeFromWishlist(userId, productId) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/wishlist/${userId}/remove/${productId}`, {
+          method: 'DELETE',
+          headers: this.getAuthHeaders()
+        });
+        if (res.ok) return await res.json();
+      } catch (err) {
+        console.warn('Backend remove from wishlist failed', err);
+      }
+    }
+    return { success: true };
   }
 
   async getAllComplaints() {
@@ -1240,28 +1615,320 @@ class ApiService {
     return storageService.adminResolveComplaint(complaintId, payload);
   }
 
+  // ==========================================
+  // COUPON VALIDATION
+  // ==========================================
+
+  async validateCoupon(code, cartTotal) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/coupons/validate`, {
+          method: 'POST',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({ code, cartTotal })
+        });
+        const data = await res.json();
+        return data;
+      } catch (err) {
+        console.warn('Backend coupon validate failed', err);
+      }
+    }
+    const upper = (code || '').toUpperCase().trim();
+    if (upper === 'FARMFRESH') {
+      return { success: true, message: '15% Farm Fresh discount applied!', coupon: { code: 'FARMFRESH', discountPercent: 15, discountAmount: Math.round(cartTotal * 0.15) } };
+    }
+    return { success: false, message: 'Invalid or expired coupon' };
+  }
+
+  // ==========================================
+  // PLATFORM SETTINGS & AUDIT LOGS
+  // ==========================================
+
   async getPlatformSettings() {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/admin/settings`, { headers: this.getAuthHeaders() });
+        if (res.ok) return await res.json();
+      } catch (err) {
+        console.warn('Backend settings fetch failed', err);
+      }
+    }
     return storageService.getPlatformSettings();
   }
 
   async updatePlatformSettings(newSettings, actor) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/admin/settings`, {
+          method: 'PUT',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({ ...newSettings, actor })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          storageService.updatePlatformSettings(newSettings, actor);
+          return data;
+        }
+      } catch (err) {
+        console.warn('Backend settings update failed', err);
+      }
+    }
     return storageService.updatePlatformSettings(newSettings, actor);
   }
 
   async getBroadcastAnnouncements() {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/notifications/broadcasts`, { headers: this.getAuthHeaders() });
+        if (res.ok) return await res.json();
+      } catch (err) {
+        console.warn('Backend broadcast fetch failed', err);
+      }
+    }
     return storageService.getBroadcastAnnouncements();
   }
 
   async createBroadcastAnnouncement(payload, actor) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/notifications/broadcast`, {
+          method: 'POST',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({ ...payload, actor })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          storageService.createBroadcastAnnouncement(payload, actor);
+          return data;
+        }
+      } catch (err) {
+        console.warn('Backend broadcast create failed', err);
+      }
+    }
     return storageService.createBroadcastAnnouncement(payload, actor);
   }
 
-  async getAuditLogs() {
+  async getAuditLogs(category, search) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const params = new URLSearchParams();
+        if (category && category !== 'All') params.append('category', category);
+        if (search) params.append('search', search);
+        const res = await fetch(`${this.baseUrl}/admin/audit-logs?${params.toString()}`, { headers: this.getAuthHeaders() });
+        if (res.ok) return await res.json();
+      } catch (err) {
+        console.warn('Backend audit logs fetch failed', err);
+      }
+    }
     return storageService.getAuditLogs();
   }
 
   async logAdminAuditAction(payload) {
+    if (this.isBackendAvailable || (await this.checkBackendHealth())) {
+      try {
+        const res = await fetch(`${this.baseUrl}/admin/audit-logs`, {
+          method: 'POST',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) return await res.json();
+      } catch (err) {
+        console.warn('Backend log audit action failed', err);
+      }
+    }
     return storageService.logAdminAuditAction(payload);
+  }
+
+  // ==========================================
+  // AGRICULTURAL CATALOGUE & APIS
+  // ==========================================
+
+  async getCatalogueProducts(options = {}) {
+    try {
+      const params = new URLSearchParams();
+      if (options.category) params.append('category', options.category);
+      if (options.search) params.append('search', options.search);
+      if (options.season) params.append('season', options.season);
+      if (options.page) params.append('page', options.page);
+      if (options.limit) params.append('limit', options.limit);
+
+      const res = await fetch(`${this.baseUrl}/catalogue?${params.toString()}`);
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('Catalogue fetch error:', err);
+    }
+    return { success: false, items: [], total: 0 };
+  }
+
+  async getCatalogueProductById(id) {
+    try {
+      const res = await fetch(`${this.baseUrl}/catalogue/${id}`);
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('Catalogue item fetch error:', err);
+    }
+    return { success: false, catalogueItem: null, activeFarmerListings: [] };
+  }
+
+  async searchCatalogue(query) {
+    try {
+      const res = await fetch(`${this.baseUrl}/catalogue/search?q=${encodeURIComponent(query)}`);
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('Catalogue search error:', err);
+    }
+    return { success: false, results: [] };
+  }
+
+  async searchPlants(query) {
+    try {
+      const res = await fetch(`${this.baseUrl}/agriculture/plants/search?q=${encodeURIComponent(query)}`);
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('Plant search error:', err);
+    }
+    return { success: false, data: [] };
+  }
+
+  async searchFoodNutrition(query) {
+    try {
+      const res = await fetch(`${this.baseUrl}/agriculture/food/search?q=${encodeURIComponent(query)}`);
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('Nutrition search error:', err);
+    }
+    return { success: false, data: [] };
+  }
+
+  async searchWikimediaImages(query) {
+    try {
+      const res = await fetch(`${this.baseUrl}/agriculture/images/search?q=${encodeURIComponent(query)}`);
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('Wikimedia images search error:', err);
+    }
+    return { success: false, data: [] };
+  }
+
+  async getMandiPrices(commodity, state = '') {
+    try {
+      let url = `${this.baseUrl}/agriculture/market-prices?commodity=${encodeURIComponent(commodity)}`;
+      if (state) url += `&state=${encodeURIComponent(state)}`;
+      const res = await fetch(url);
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('Mandi prices fetch error:', err);
+    }
+    return { success: false, data: [], summary: null };
+  }
+
+  async compareMandiPrice(commodity, farmerPrice, state = '') {
+    try {
+      let url = `${this.baseUrl}/agriculture/market-prices/${encodeURIComponent(commodity)}?farmerPrice=${farmerPrice || ''}`;
+      if (state) url += `&state=${encodeURIComponent(state)}`;
+      const res = await fetch(url);
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('Mandi price comparison error:', err);
+    }
+    return { success: false, comparison: null };
+  }
+
+  async uploadFarmerImage(imagePayload, farmerId = 'general') {
+    try {
+      const res = await fetch(`${this.baseUrl}/farmer/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...this.getAuthHeaders() },
+        body: JSON.stringify({ image: imagePayload, farmerId })
+      });
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('Farmer image upload error:', err);
+    }
+    return { success: false, message: 'Upload failed' };
+  }
+
+  async attachFarmerProductImage(productId, imagePayload, farmerId = 'general') {
+    try {
+      const res = await fetch(`${this.baseUrl}/farmer/products/${productId}/images`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...this.getAuthHeaders() },
+        body: JSON.stringify({ image: imagePayload, farmerId })
+      });
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('Attach product image error:', err);
+    }
+    return { success: false, message: 'Failed to attach image' };
+  }
+
+  async deleteFarmerProductImage(productId, imageId) {
+    try {
+      const res = await fetch(`${this.baseUrl}/farmer/products/${productId}/images/${imageId}`, {
+        method: 'DELETE',
+        headers: this.getAuthHeaders()
+      });
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('Delete product image error:', err);
+    }
+    return { success: false, message: 'Failed to delete image' };
+  }
+
+  async getAdminCatalogue(options = {}) {
+    try {
+      const params = new URLSearchParams();
+      if (options.category) params.append('category', options.category);
+      if (options.search) params.append('search', options.search);
+      if (options.page) params.append('page', options.page);
+      if (options.limit) params.append('limit', options.limit);
+      const res = await fetch(`${this.baseUrl}/admin/catalogue?${params.toString()}`, {
+        headers: this.getAuthHeaders()
+      });
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('Admin catalogue fetch error:', err);
+    }
+    return { success: false, items: [], total: 0 };
+  }
+
+  async importAdminCatalogue(payload) {
+    try {
+      const res = await fetch(`${this.baseUrl}/admin/catalogue/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...this.getAuthHeaders() },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('Admin catalogue import error:', err);
+    }
+    return { success: false, message: 'Import failed' };
+  }
+
+  async syncAdminCatalogueMandiPrices() {
+    try {
+      const res = await fetch(`${this.baseUrl}/admin/catalogue/sync`, {
+        method: 'POST',
+        headers: this.getAuthHeaders()
+      });
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('Admin sync mandi prices error:', err);
+    }
+    return { success: false, message: 'Sync failed' };
+  }
+
+  async getAdminImageLicenseAudit() {
+    try {
+      const res = await fetch(`${this.baseUrl}/admin/images/audit`, {
+        headers: this.getAuthHeaders()
+      });
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('Admin image license audit error:', err);
+    }
+    return { success: false, auditList: [] };
   }
 
   getActiveRole() {

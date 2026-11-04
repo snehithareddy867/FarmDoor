@@ -16,7 +16,9 @@ import {
   Search, 
   HelpCircle,
   ShieldCheck,
-  ChevronDown
+  ChevronDown,
+  CreditCard,
+  BookOpen
 } from 'lucide-react';
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import { useCart } from '../../context/CartContext';
@@ -102,6 +104,18 @@ export default function CustomerNavbar() {
                 >
                   <Grid className="w-3.5 h-3.5 text-[#52b788]" />
                   Categories
+                </Link>
+
+                <Link
+                  to="/catalogue"
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                    isActive('/catalogue') || isActive('/customer/catalogue')
+                      ? 'bg-[#1b4332] text-white shadow-sm'
+                      : 'text-gray-300 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-[#52b788]" />
+                  Agri Catalogue
                 </Link>
 
                 <Link
@@ -224,6 +238,14 @@ export default function CustomerNavbar() {
                     </Link>
 
                     <Link
+                      to="/customer/payments"
+                      className="flex items-center gap-2 px-4 py-2.5 text-gray-300 hover:text-white hover:bg-[#1b4332] transition-colors"
+                    >
+                      <CreditCard className="w-4 h-4 text-[#52b788]" />
+                      Payments & Receipts
+                    </Link>
+
+                    <Link
                       to="/customer/support"
                       className="flex items-center gap-2 px-4 py-2.5 text-gray-300 hover:text-white hover:bg-[#1b4332] transition-colors"
                     >
@@ -279,6 +301,13 @@ export default function CustomerNavbar() {
               className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-white hover:bg-[#1b4332]"
             >
               <Store className="w-4 h-4 text-[#52b788]" /> Browse Marketplace
+            </Link>
+            <Link
+              to="/catalogue"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-white hover:bg-[#1b4332]"
+            >
+              <BookOpen className="w-4 h-4 text-[#52b788]" /> Agri Catalogue & Crop Guide
             </Link>
             <Link
               to="/customer/wishlist"

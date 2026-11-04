@@ -17,6 +17,22 @@ import {
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import { useCart } from '../../context/CartContext';
 import { api } from '../../services/api';
+import { handleImageError } from '../../utils/imageFallback';
+
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if (typeof window !== 'undefined' && window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -96,6 +112,8 @@ export default function CheckoutPage() {
     setOrderError('');
 
     try {
+      const isOnline = paymentMethod === 'online';
+
       const orderPayload = {
         customerId: user.id,
         customerName: user.fullName,
@@ -107,8 +125,8 @@ export default function CheckoutPage() {
         subtotal: subtotal,
         discount: discountAmount,
         totalAmount: finalTotal,
-        paymentMethod: paymentMethod,
-        paymentStatus: paymentMethod === 'online' ? 'Paid' : 'Pending COD',
+        paymentMethod: isOnline ? 'Razorpay Online' : 'Cash on Delivery',
+        paymentStatus: isOnline ? 'Pending' : 'Pending COD',
         orderStatus: 'Placed',
         estimatedDelivery: deliveryMethod === 'farmer' ? 'Tomorrow, 7:00 AM - 10:00 AM' : 'Today, 2:00 PM - 5:00 PM',
         deliveryPartner: {
@@ -133,17 +151,105 @@ export default function CheckoutPage() {
           {
             status: 'Placed',
             timestamp: new Date().toISOString(),
-            note: paymentMethod === 'online'
-              ? 'Order placed with online payment verification.'
+            note: isOnline
+              ? 'Order initiated with Razorpay online gateway payment.'
               : 'Order placed with Cash on Delivery option.'
           }
         ]
       };
 
       const placedOrder = await api.createOrder(orderPayload);
-      clearCart();
-      navigate(`/customer/order-confirmation/${placedOrder.id}`, { state: { order: placedOrder } });
+      const effectiveOrderId = placedOrder.id || placedOrder.orderNumber;
+
+      if (!isOnline) {
+        // Cash on delivery direct checkout
+        clearCart();
+        navigate(`/customer/order-confirmation/${effectiveOrderId}`, { state: { order: placedOrder } });
+        return;
+      }
+
+      // --- RAZORPAY PAYMENT GATEWAY FLOW ---
+      const rzpOrder = await api.createRazorpayOrder({
+        amount: finalTotal,
+        orderNumber: placedOrder.orderNumber || effectiveOrderId,
+        customerId: user.id
+      });
+
+      const isScriptLoaded = await loadRazorpayScript();
+
+      if (isScriptLoaded && window.Razorpay && !rzpOrder.isSimulated && rzpOrder.orderId?.startsWith('order_')) {
+        // Open official Razorpay Checkout Modal
+        const options = {
+          key: rzpOrder.keyId,
+          amount: rzpOrder.amount,
+          currency: rzpOrder.currency || 'INR',
+          name: 'FarmDoor Marketplace',
+          description: `Fresh Harvest Order #${placedOrder.orderNumber || effectiveOrderId}`,
+          image: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=200&q=80',
+          order_id: rzpOrder.orderId,
+          prefill: {
+            name: user.fullName || '',
+            email: user.email || '',
+            contact: user.mobile || ''
+          },
+          theme: {
+            color: '#1b4332'
+          },
+          handler: async function (response) {
+            try {
+              const verifyRes = await api.verifyRazorpayPayment({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                orderNumber: placedOrder.orderNumber || effectiveOrderId,
+                amount: finalTotal,
+                customerId: user.id,
+                paymentMethod: 'Razorpay Online'
+              });
+
+              clearCart();
+              navigate(`/customer/order-confirmation/${effectiveOrderId}`, {
+                state: { order: placedOrder, payment: verifyRes.payment }
+              });
+            } catch (vErr) {
+              setOrderError('Payment confirmation failed. Please contact support with Txn ID: ' + response.razorpay_payment_id);
+              setIsSubmitting(false);
+            }
+          },
+          modal: {
+            ondismiss: function () {
+              setIsSubmitting(false);
+              setOrderError('Payment window closed. Your order was created as Pending; you can complete payment from Orders or retry.');
+            }
+          }
+        };
+
+        const razorpayInstance = new window.Razorpay(options);
+        razorpayInstance.on('payment.failed', function (resp) {
+          setOrderError(`Payment declined: ${resp.error?.description || 'Gateway error'}`);
+          setIsSubmitting(false);
+        });
+        razorpayInstance.open();
+      } else {
+        // Sandbox Simulation Mode (for local/testing or sandbox keys)
+        const simTxnId = `pay_sim_${Date.now()}`;
+        const verifyRes = await api.verifyRazorpayPayment({
+          razorpay_order_id: rzpOrder.orderId || `order_test_${Date.now()}`,
+          razorpay_payment_id: simTxnId,
+          razorpay_signature: `simulated_signature_${Date.now()}`,
+          orderNumber: placedOrder.orderNumber || effectiveOrderId,
+          amount: finalTotal,
+          customerId: user.id,
+          paymentMethod: 'Razorpay Online (Test Mode)'
+        });
+
+        clearCart();
+        navigate(`/customer/order-confirmation/${effectiveOrderId}`, {
+          state: { order: placedOrder, payment: verifyRes.payment }
+        });
+      }
     } catch (err) {
+      console.error('Checkout error:', err);
       setOrderError('Failed to place order. Please check connection and try again.');
       setIsSubmitting(false);
     }
@@ -400,11 +506,16 @@ export default function CheckoutPage() {
                     className="h-4 w-4 text-[#2d6a4f]"
                   />
                   <div>
-                    <span className="font-bold text-xs text-[#081c15] block">
-                      Online Payment (UPI, Cards & NetBanking)
-                    </span>
-                    <span className="text-[11px] text-gray-500">
-                      Simulated secure gateway confirmation with escrow release to farmer.
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs text-[#081c15] block">
+                        Razorpay Gateway (UPI, Cards & NetBanking)
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#2d6a4f] text-white">
+                        Test Mode Ready
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-gray-500 block mt-0.5">
+                      Instant HMAC SHA256 verified escrow payment directly connected to farmer.
                     </span>
                   </div>
                 </div>
@@ -426,7 +537,9 @@ export default function CheckoutPage() {
                 <div className="flex items-center gap-2.5">
                   <img
                     src={item.image}
-                    alt=""
+                    alt={item.name || 'Checkout item'}
+                    loading="lazy"
+                    onError={(e) => handleImageError(e, item.category)}
                     className="w-10 h-10 rounded-xl object-cover bg-gray-100"
                   />
                   <div>

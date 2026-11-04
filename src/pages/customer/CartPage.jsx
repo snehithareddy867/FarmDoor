@@ -15,6 +15,8 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
+import { api } from '../../services/api';
+import { handleImageError } from '../../utils/imageFallback';
 
 export default function CartPage() {
   const navigate = useNavigate();
@@ -35,16 +37,25 @@ export default function CartPage() {
   const [promoError, setPromoError] = useState('');
   const [promoSuccess, setPromoSuccess] = useState('');
 
-  const handleApplyPromo = (e) => {
+  const handleApplyPromo = async (e) => {
     e.preventDefault();
     setPromoError('');
     setPromoSuccess('');
-    const code = promoCode.trim().toUpperCase();
-    if (code === 'FARMFRESH' || code === 'FIRSTFARM') {
-      setDiscountPercent(15);
-      setPromoSuccess('15% Farm Fresh promotional discount applied!');
-    } else {
-      setPromoError('Invalid promo code. Use "FARMFRESH" for 15% off.');
+    if (!promoCode.trim()) {
+      setPromoError('Please enter a coupon code.');
+      return;
+    }
+    try {
+      const res = await api.validateCoupon(promoCode, subtotal);
+      if (res.success && res.coupon) {
+        setDiscountPercent(res.coupon.discountPercent);
+        setPromoSuccess(res.message || `${res.coupon.discountPercent}% discount applied!`);
+      } else {
+        setPromoError(res.message || 'Invalid or expired coupon code.');
+        setDiscountPercent(0);
+      }
+    } catch {
+      setPromoError('Failed to validate coupon code.');
     }
   };
 
@@ -131,6 +142,8 @@ export default function CartPage() {
                     <img
                       src={item.image}
                       alt={item.name}
+                      loading="lazy"
+                      onError={(e) => handleImageError(e, item.category)}
                       className="w-20 h-20 rounded-2xl object-cover shrink-0 bg-gray-100"
                     />
                     <div>

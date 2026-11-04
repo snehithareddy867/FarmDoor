@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { api } from '../services/api';
+import { handleImageError } from '../utils/imageFallback';
 import { 
   X, 
   Trash2, 
@@ -32,14 +34,20 @@ export default function CartDrawer({
   const discountAmount = (subtotal * discountPercent) / 100;
   const total = Math.max(0, subtotal - discountAmount + deliveryFee);
 
-  const applyCoupon = (e) => {
+  const applyCoupon = async (e) => {
     e.preventDefault();
-    if (couponCode.trim().toUpperCase() === 'FARMFRESH' || couponCode.trim().toUpperCase() === 'FIRSTFARM') {
-      setDiscountPercent(15);
-      setCouponApplied(true);
-      onNotify('15% Farm Fresh discount applied successfully!');
-    } else {
-      onNotify('Invalid promo code. Try "FARMFRESH" for 15% off.');
+    if (!couponCode.trim()) return;
+    try {
+      const res = await api.validateCoupon(couponCode, subtotal);
+      if (res.success && res.coupon) {
+        setDiscountPercent(res.coupon.discountPercent);
+        setCouponApplied(true);
+        onNotify(res.message || `${res.coupon.discountPercent}% discount applied!`);
+      } else {
+        onNotify(res.message || 'Invalid or expired promo code.');
+      }
+    } catch {
+      onNotify('Failed to validate promo code.');
     }
   };
 
@@ -128,6 +136,8 @@ export default function CartDrawer({
                     <img
                       src={item.image}
                       alt={item.name}
+                      loading="lazy"
+                      onError={(e) => handleImageError(e, item.category)}
                       className="w-18 h-18 rounded-xl object-cover shrink-0"
                     />
                     <div className="flex-1 flex flex-col justify-between">

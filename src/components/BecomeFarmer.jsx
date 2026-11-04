@@ -1,6 +1,7 @@
 import React from 'react';
 import { FARMER_BENEFITS } from '../data/mockData';
 import { Sparkles, CheckCircle2, ArrowRight, TrendingUp, ShieldCheck, Truck, Coins } from 'lucide-react';
+import { handleAvatarError, AVATAR_FALLBACKS } from '../utils/imageFallback';
 
 export default function BecomeFarmer({ onOpenFarmerModal }) {
   return (
@@ -66,6 +67,8 @@ export default function BecomeFarmer({ onOpenFarmerModal }) {
                   <img
                     src="https://images.unsplash.com/photo-1595974482597-4b8da8879bc5?auto=format&fit=crop&w=300&q=80"
                     alt="Farmer Ramesh Patel"
+                    loading="lazy"
+                    onError={(e) => handleAvatarError(e, 'farmer')}
                     className="w-16 h-16 rounded-2xl object-cover border-2 border-[#52b788]"
                   />
                   <div>

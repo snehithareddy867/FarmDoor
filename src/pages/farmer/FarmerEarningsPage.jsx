@@ -21,16 +21,18 @@ export default function FarmerEarningsPage() {
   const [loading, setLoading] = useState(true);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
 
+  const farmerIdentifier = farmer?.farmerId || farmer?.id || farmer?._id;
+
   useEffect(() => {
     const fetchEarnings = async () => {
-      if (!farmer?.id) return;
+      if (!farmerIdentifier) return;
       setLoading(true);
-      const data = await api.getFarmerEarnings(farmer.id);
+      const data = await api.getFarmerEarnings(farmerIdentifier);
       setEarnings(data || null);
       setLoading(false);
     };
     fetchEarnings();
-  }, [farmer?.id]);
+  }, [farmerIdentifier]);
 
   const grossSales = earnings?.totalGrossSales ?? 0;
   const platformFee = Math.round(grossSales * 0.10);

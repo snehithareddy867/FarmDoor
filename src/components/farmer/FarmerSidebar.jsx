@@ -17,6 +17,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { useFarmerAuth } from '../../context/FarmerAuthContext';
+import { handleAvatarError } from '../../utils/imageFallback';
 
 const NAV_ITEMS = [
   { path: '/farmer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -107,6 +108,8 @@ export default function FarmerSidebar({ mobileOpen, onCloseMobile }) {
             <img
               src={farmer?.avatar}
               alt=""
+              loading="lazy"
+              onError={(e) => handleAvatarError(e, 'farmer')}
               className="w-10 h-10 rounded-xl object-cover border border-[#52b788]"
             />
             <div className="truncate">

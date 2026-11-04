@@ -12,26 +12,39 @@ import {
   ShieldCheck 
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { handleImageError } from '../../utils/imageFallback';
 
 export default function OrderConfirmationPage() {
-  const { orderId } = useParams();
+  const { id, orderId } = useParams();
+  const effectiveId = id || orderId;
   const location = useLocation();
   const navigate = useNavigate();
 
   const [order, setOrder] = useState(location.state?.order || null);
-  const [loading, setLoading] = useState(!location.state?.order);
+  const [loading, setLoading] = useState(!location.state?.order && !!effectiveId);
 
   useEffect(() => {
-    if (!order && orderId) {
+    if (!order && effectiveId) {
+      let isMounted = true;
       async function fetchOrder() {
         setLoading(true);
-        const data = await api.getOrderById(orderId);
-        setOrder(data);
-        setLoading(false);
+        try {
+          const data = await api.getOrderById(effectiveId);
+          if (isMounted) setOrder(data);
+        } catch (err) {
+          console.error('Failed to load order:', err);
+        } finally {
+          if (isMounted) setLoading(false);
+        }
       }
       fetchOrder();
+      return () => {
+        isMounted = false;
+      };
+    } else if (!effectiveId && !order) {
+      setLoading(false);
     }
-  }, [orderId, order]);
+  }, [effectiveId, order]);
 
   if (loading) {
     return (
@@ -139,7 +152,9 @@ export default function OrderConfirmationPage() {
                 <div className="flex items-center gap-3">
                   <img
                     src={item.image}
-                    alt=""
+                    alt={item.name || 'Crop Item'}
+                    loading="lazy"
+                    onError={(e) => handleImageError(e, item.category)}
                     className="w-12 h-12 rounded-xl object-cover bg-gray-100 shrink-0"
                   />
                   <div>

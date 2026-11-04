@@ -13,6 +13,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useDeliveryAuth } from '../../context/DeliveryAuthContext';
+import { handleAvatarError, AVATAR_FALLBACKS } from '../../utils/imageFallback';
 
 export default function DeliveryProfilePage() {
   const { partner, updateProfile } = useDeliveryAuth();
@@ -103,8 +104,10 @@ export default function DeliveryProfilePage() {
           <div className="bg-white rounded-3xl p-6 border border-[#2d6a4f]/20 shadow-sm text-center flex flex-col items-center">
             <div className="relative mb-4">
               <img
-                src={partner?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'}
+                src={partner?.avatar || AVATAR_FALLBACKS.delivery}
                 alt={partner?.name}
+                loading="lazy"
+                onError={(e) => handleAvatarError(e, 'delivery')}
                 className="w-24 h-24 rounded-full object-cover border-4 border-[#2d6a4f]/30 shadow-md"
               />
               <span className="absolute bottom-1 right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white" />
